@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
-import 'package:harmonymusic/services/lan_sync_service.dart';
+// import 'package:harmonymusic/services/lan_sync_service.dart';
 
 class LanSyncSettingsUI extends StatefulWidget {
   const LanSyncSettingsUI({super.key});
