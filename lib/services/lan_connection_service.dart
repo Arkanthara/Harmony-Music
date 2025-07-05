@@ -6,7 +6,8 @@ import 'dart:io';
 class LanConnectionService {
   ServerSocket? _serverSocket;
   Socket? _socket;
-  StreamController<String> _receivedController = StreamController.broadcast();
+  final StreamController<String> _receivedController =
+      StreamController.broadcast();
 
   Stream<String> get onReceived => _receivedController.stream;
 
@@ -25,7 +26,7 @@ class LanConnectionService {
 
   /// Send message to peer.
   void send(String message) {
-    _socket?.write(message + '\n');
+    _socket?.write('$message\n');
   }
 
   /// Internal: when a client connects to our server.

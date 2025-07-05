@@ -686,15 +686,15 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              CustomExpansionTile(
+              const CustomExpansionTile(
                 icon: Icons.sync_alt,
                 title: "LAN Sync",
                 children: [
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 8.0),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
                     child:
-                        LanSyncSettingsSection(), // <- This widget as previously defined
+                        LanSyncSettingsUI(), // <- This widget as previously defined
                   ),
                 ],
               ),
