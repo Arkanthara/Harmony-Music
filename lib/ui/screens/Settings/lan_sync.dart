@@ -17,7 +17,7 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
   final ipController = TextEditingController();
   final portController = TextEditingController(text: "4040");
   LanConnectionService? _conn;
-  LanSyncService? _sync;
+  // LanSyncService? _sync;
 
   @override
   void dispose() {
@@ -33,7 +33,7 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
     });
     _conn?.dispose();
     _conn = LanConnectionService();
-    _sync = LanSyncService(_conn!);
+    // _sync = LanSyncService(_conn!);
     try {
       if (isHost) {
         final port = int.tryParse(portController.text) ?? 4040;
