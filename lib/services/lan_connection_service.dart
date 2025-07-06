@@ -1,59 +1,69 @@
 import 'dart:async';
 import 'dart:io';
 
-/// Robust LAN connection service for two devices (host/server and client).
-/// Handles connection, reconnection, and message streaming.
-/// Designed for interoperability between platforms (Linux, Android, etc.).
 class LanConnectionService {
   ServerSocket? _serverSocket;
   Socket? _socket;
-
   final StreamController<String> _receivedController =
       StreamController<String>.broadcast();
 
-  /// Stream of incoming messages (one per line).
   Stream<String> get onReceived => _receivedController.stream;
-
-  /// Returns true if a socket connection is active.
   bool get isConnected => _socket != null;
 
   /// Start as host/server. Returns the listening port.
   Future<int> startAsServer({int port = 4040}) async {
-    await dispose(); // Clean up any previous state
+    await dispose();
     _serverSocket =
         await ServerSocket.bind(InternetAddress.anyIPv4, port, shared: true);
+    print(
+        'Listening as server on: ${_serverSocket!.address.address}:${_serverSocket!.port}');
     _serverSocket!.listen(_handleIncomingSocket, onError: _handleServerError);
     return _serverSocket!.port;
   }
 
-  /// Connect as client to a given host IP and port.
-  Future<void> connectToServer(String hostIp, int port) async {
-    await dispose(); // Clean up any previous state
-    _socket =
-        await Socket.connect(hostIp, port, timeout: const Duration(seconds: 5));
-    _socket!.listen(
-      _handleData,
-      onDone: _onSocketDone,
-      onError: _handleSocketError,
-      cancelOnError: true,
-    );
-  }
-
-  /// Send a message string to the connected peer.
-  void send(String message) {
-    if (_socket != null) {
+  /// Connect as client to a given host IP and port, with retry and debug logging.
+  Future<void> connectToServer(String hostIp, int port,
+      {int retries = 3}) async {
+    await dispose();
+    int attempt = 0;
+    while (attempt < retries) {
       try {
-        _socket!.write('$message\n');
-      } catch (_) {
-        // Optionally handle send errors
+        print(
+            'Attempting to connect to $hostIp:$port (try ${attempt + 1}/$retries)...');
+        _socket = await Socket.connect(hostIp, port,
+            timeout: const Duration(seconds: 10));
+        print('Connected to $hostIp:$port!');
+        _socket!.listen(
+          _handleData,
+          onDone: _onSocketDone,
+          onError: _handleSocketError,
+          cancelOnError: true,
+        );
+        return;
+      } on SocketException catch (e) {
+        print('Connection attempt failed: $e');
+        attempt++;
+        if (attempt >= retries) {
+          rethrow;
+        }
+        await Future.delayed(const Duration(seconds: 2));
       }
     }
   }
 
-  /// Handle a new incoming client connection (for host/server).
+  void send(String message) {
+    if (_socket != null) {
+      try {
+        _socket!.write('$message\n');
+      } catch (_) {}
+    }
+  }
+
   void _handleIncomingSocket(Socket socket) {
-    _socket?.destroy(); // Drop any previous socket
+    _socket?.destroy();
     _socket = socket;
+    print(
+        'Client connected: ${_socket!.remoteAddress.address}:${_socket!.remotePort}');
     _socket!.listen(
       _handleData,
       onDone: _onSocketDone,
@@ -62,10 +72,8 @@ class LanConnectionService {
     );
   }
 
-  /// Handle incoming data from the peer.
   void _handleData(List<int> data) {
     final raw = String.fromCharCodes(data);
-    // Split in case multiple messages arrive together
     for (final msg in raw.split('\n')) {
       final trimmed = msg.trim();
       if (trimmed.isNotEmpty) {
@@ -75,31 +83,30 @@ class LanConnectionService {
   }
 
   void _onSocketDone() {
+    print('Socket disconnected.');
     _socket?.destroy();
     _socket = null;
   }
 
   void _handleSocketError(Object error) {
-    // Optionally log or handle socket errors
+    print('Socket error: $error');
     _onSocketDone();
   }
 
   void _handleServerError(Object error) {
-    // Optionally log or handle server errors
+    print('Server error: $error');
     dispose();
   }
 
-  /// Cleanly close all resources.
   Future<void> dispose() async {
     try {
-      await _serverSocket?.close();
+      _serverSocket?.close();
     } catch (_) {}
     try {
       _socket?.destroy();
     } catch (_) {}
     _serverSocket = null;
     _socket = null;
-    // Do NOT close the _receivedController here if you want to reconnect/reuse!
-    // Only close this when the whole app is shutting down.
+    // Do NOT close the _receivedController if you want reuse in app.
   }
 }
