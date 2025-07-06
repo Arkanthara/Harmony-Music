@@ -4,6 +4,8 @@ import 'dart:io';
 class LanConnectionService {
   ServerSocket? _serverSocket;
   Socket? _socket;
+  Socket? get socket => _socket;
+  ServerSocket? get serverSocket => _serverSocket;
   final StreamController<String> _receivedController =
       StreamController<String>.broadcast();
 

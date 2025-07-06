@@ -14,7 +14,6 @@ class LanSyncSettingsUI extends StatefulWidget {
 
 class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
   bool isHost = false;
-  String status = 'Not connected';
   final ipController = TextEditingController();
   final portController = TextEditingController(text: "4040");
   List<String> _hostIps = [];
@@ -23,137 +22,170 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
   void dispose() {
     ipController.dispose();
     portController.dispose();
-    // Not needed: connection cleanup now handled in controller
     super.dispose();
   }
 
-  Future<void> connect() async {
-    setState(() {
-      status = "Connecting...";
-    });
+  @override
+  void initState() {
+    super.initState();
 
+    // Restore role and connection state if present (persists across navigation)
     final lanSync = Get.find<LanSyncController>();
-    lanSync.disconnect(); // Clean up any previous connection
+    if (lanSync.role.value == LanRole.host) {
+      isHost = true;
+      _updateHostIps();
+    } else if (lanSync.role.value == LanRole.client) {
+      isHost = false;
+      ipController.text = lanSync.conn?.socket?.remoteAddress.address ?? "";
+      portController.text =
+          lanSync.conn?.socket?.remotePort.toString() ?? "4040";
+    }
+  }
+
+  Future<void> _updateHostIps() async {
+    final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4, includeLinkLocal: false);
+    _hostIps = interfaces
+        .expand((iface) => iface.addresses)
+        .map((addr) => addr.address)
+        .where((ip) => !ip.startsWith('127.'))
+        .toList();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> connect() async {
+    final lanSync = Get.find<LanSyncController>();
+    lanSync.disconnect();
 
     final conn = LanConnectionService();
     try {
       if (isHost) {
-        final port = int.tryParse(portController.text) ?? 4040;
-        final listeningPort = await conn.startAsServer(port: port);
-        final interfaces = await NetworkInterface.list(
-            type: InternetAddressType.IPv4, includeLinkLocal: false);
-        _hostIps = interfaces
-            .expand((iface) => iface.addresses)
-            .map((addr) => addr.address)
-            .where((ip) => !ip.startsWith('127.')) // filter out localhost
-            .toList();
+        // final port = int.tryParse(portController.text) ?? 4040;
+        // final listeningPort = await conn.startAsServer(port: port);
+        await _updateHostIps();
         lanSync.setHost(conn);
-        setState(() {
-          status =
-              "Hosting on:\n${_hostIps.map((ip) => "$ip:$listeningPort").join('\n')}\nWaiting for client...";
-        });
       } else {
         final ip = ipController.text.trim();
         final port = int.tryParse(portController.text) ?? 4040;
         await conn.connectToServer(ip, port);
         lanSync.setClient(conn);
-        setState(() {
-          status = "Connected to $ip:$port";
-        });
       }
-
-      conn.onReceived.listen((msg) {
-        setState(() {
-          status = "Connected!\nLast received: $msg";
-        });
-      });
     } catch (e) {
       lanSync.disconnect();
-      setState(() {
-        status = "Connection failed: $e";
-      });
+      Get.snackbar("LAN Sync", "Connection failed: $e",
+          backgroundColor: Colors.red[200]);
     }
   }
 
   void disconnect() {
     final lanSync = Get.find<LanSyncController>();
     lanSync.disconnect();
-    setState(() {
-      status = "Not connected";
-    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    return GetX<LanSyncController>(
+      builder: (lanSync) {
+        String status;
+        if (lanSync.connected.value) {
+          if (lanSync.isHost) {
+            final clientIp = lanSync.conn?.socket?.remoteAddress.address;
+            if (clientIp != null) {
+              status = "Host: Client connected from $clientIp";
+            } else {
+              status =
+                  "Hosting on:\n${_hostIps.map((ip) => "$ip:${lanSync.conn?.serverSocket?.port ?? portController.text}").join('\n')}\nWaiting for client...";
+            }
+          } else if (lanSync.isClient) {
+            final hostIp = lanSync.conn?.socket?.remoteAddress.address ??
+                ipController.text;
+            final hostPort = lanSync.conn?.socket?.remotePort.toString() ??
+                portController.text;
+            status = "Client: Connected to $hostIp:$hostPort";
+          } else {
+            status = "Connected (unknown role)";
+          }
+        } else {
+          status = "Not connected";
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: ListTile(
-                title: const Text("Host"),
-                leading: Radio<bool>(
-                  value: true,
-                  groupValue: isHost,
-                  onChanged: (val) => setState(() => isHost = true),
+            Row(
+              children: [
+                Expanded(
+                  child: ListTile(
+                    title: const Text("Host"),
+                    leading: Radio<bool>(
+                      value: true,
+                      groupValue: isHost,
+                      onChanged: (val) => setState(() => isHost = true),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ListTile(
+                    title: const Text("Client"),
+                    leading: Radio<bool>(
+                      value: false,
+                      groupValue: isHost,
+                      onChanged: (val) => setState(() => isHost = false),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (isHost && _hostIps.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Text(
+                  "Your Host IPs:\n${_hostIps.join('\n')}",
+                  style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
                 ),
               ),
+            if (!isHost)
+              TextField(
+                controller: ipController,
+                decoration: const InputDecoration(labelText: "Host IP Address"),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+              ),
+            TextField(
+              controller: portController,
+              decoration: const InputDecoration(labelText: "Port"),
+              keyboardType: TextInputType.number,
             ),
-            Expanded(
-              child: ListTile(
-                title: const Text("Client"),
-                leading: Radio<bool>(
-                  value: false,
-                  groupValue: isHost,
-                  onChanged: (val) => setState(() => isHost = false),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: connect,
+                  child: Text(isHost ? "Start Hosting" : "Connect"),
                 ),
-              ),
+                const SizedBox(width: 16),
+                if (status != "Not connected")
+                  ElevatedButton(
+                    onPressed: disconnect,
+                    style:
+                        ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: const Text("Disconnect"),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              status,
+              style: TextStyle(
+                  color: status.contains("failed")
+                      ? Colors.red
+                      : status.contains("Waiting")
+                          ? Colors.orange
+                          : Colors.green),
             ),
           ],
-        ),
-        if (isHost && _hostIps.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8.0),
-            child: Text(
-              "Your Host IPs:\n${_hostIps.join('\n')}",
-              style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
-            ),
-          ),
-        if (!isHost)
-          TextField(
-            controller: ipController,
-            decoration: const InputDecoration(labelText: "Host IP Address"),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          ),
-        TextField(
-          controller: portController,
-          decoration: const InputDecoration(labelText: "Port"),
-          keyboardType: TextInputType.number,
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            ElevatedButton(
-              onPressed: connect,
-              child: Text(isHost ? "Start Hosting" : "Connect"),
-            ),
-            const SizedBox(width: 16),
-            if (status != "Not connected")
-              ElevatedButton(
-                onPressed: disconnect,
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text("Disconnect"),
-              ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          status,
-          style: TextStyle(
-              color: status.contains("failed") ? Colors.red : Colors.green),
-        ),
-      ],
+        );
+      },
     );
   }
 }

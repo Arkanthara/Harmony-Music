@@ -3,7 +3,7 @@ import 'dart:isolate';
 import 'dart:math';
 
 import 'package:flutter/services.dart';
-
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 import 'package:hive/hive.dart';
 import 'package:get/get.dart';
@@ -63,6 +63,10 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 
   // list of shuffled queue songs ids
   List<String> shuffledQueue = [];
+
+  LanSyncController? get lanSync => Get.isRegistered<LanSyncController>()
+      ? Get.find<LanSyncController>()
+      : null;
 
   final _playList =
       ConcatenatingAudioSource(children: [], useLazyPreparation: false);
@@ -444,7 +448,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<void> customAction(String name, [Map<String, dynamic>? extras]) async {
     switch (name) {
-
       case 'dispose':
         await _player.dispose();
         super.stop();
@@ -480,6 +483,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           return;
         }
         currentSongUrl = currentSong.extras!['url'] = streamInfo.audio!.url;
+        if (lanSync?.isConnected == true &&
+            lanSync?.isClient == true &&
+            lanSync?.sync != null) {
+          lanSync!.sync!.sendSong(
+            currentSong.extras?['url'] ?? currentSong.id,
+            id: currentSong.id,
+            title: currentSong.title,
+          );
+        }
         playbackState
             .add(playbackState.value.copyWith(queueIndex: currentIndex));
         await _playList.add(_createAudioSource(currentSong));
@@ -559,7 +571,15 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           return;
         }
         currentSongUrl = currMed.extras!['url'] = streamInfo.audio!.url;
-
+        if (lanSync?.isConnected == true &&
+            lanSync?.isClient == true &&
+            lanSync?.sync != null) {
+          lanSync!.sync!.sendSong(
+            currMed.extras?['url'] ?? currMed.id,
+            id: currMed.id,
+            title: currMed.title,
+          );
+        }
         await _playList.add(_createAudioSource(currMed));
         isSongLoading = false;
 
@@ -868,7 +888,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
 class UrlError extends Error {
   String message() => 'Unable to fetch url';
 }
-
 
 // for Android Auto
 class MediaLibrary {
