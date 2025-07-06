@@ -1,55 +1,105 @@
 import 'dart:async';
 import 'dart:io';
 
-/// Service to handle LAN connection between two devices.
-/// One acts as host (server), the other as client.
+/// Robust LAN connection service for two devices (host/server and client).
+/// Handles connection, reconnection, and message streaming.
+/// Designed for interoperability between platforms (Linux, Android, etc.).
 class LanConnectionService {
   ServerSocket? _serverSocket;
   Socket? _socket;
-  final StreamController<String> _receivedController =
-      StreamController.broadcast();
 
+  final StreamController<String> _receivedController =
+      StreamController<String>.broadcast();
+
+  /// Stream of incoming messages (one per line).
   Stream<String> get onReceived => _receivedController.stream;
 
-  /// Start as server (host). Returns the listening port.
+  /// Returns true if a socket connection is active.
+  bool get isConnected => _socket != null;
+
+  /// Start as host/server. Returns the listening port.
   Future<int> startAsServer({int port = 4040}) async {
-    _serverSocket = await ServerSocket.bind(InternetAddress.anyIPv4, port);
-    _serverSocket!.listen(_handleIncomingSocket);
+    await dispose(); // Clean up any previous state
+    _serverSocket =
+        await ServerSocket.bind(InternetAddress.anyIPv4, port, shared: true);
+    _serverSocket!.listen(_handleIncomingSocket, onError: _handleServerError);
     return _serverSocket!.port;
   }
 
-  /// Start as client (connect to hostIP:port).
+  /// Connect as client to a given host IP and port.
   Future<void> connectToServer(String hostIp, int port) async {
-    _socket = await Socket.connect(hostIp, port);
-    _socket!.listen(_handleData, onDone: _onSocketDone, onError: (e) {});
+    await dispose(); // Clean up any previous state
+    _socket =
+        await Socket.connect(hostIp, port, timeout: const Duration(seconds: 5));
+    _socket!.listen(
+      _handleData,
+      onDone: _onSocketDone,
+      onError: _handleSocketError,
+      cancelOnError: true,
+    );
   }
 
-  /// Send message to peer.
+  /// Send a message string to the connected peer.
   void send(String message) {
-    _socket?.write('$message\n');
+    if (_socket != null) {
+      try {
+        _socket!.write('$message\n');
+      } catch (_) {
+        // Optionally handle send errors
+      }
+    }
   }
 
-  /// Internal: when a client connects to our server.
+  /// Handle a new incoming client connection (for host/server).
   void _handleIncomingSocket(Socket socket) {
+    _socket?.destroy(); // Drop any previous socket
     _socket = socket;
-    socket.listen(_handleData, onDone: _onSocketDone, onError: (e) {});
+    _socket!.listen(
+      _handleData,
+      onDone: _onSocketDone,
+      onError: _handleSocketError,
+      cancelOnError: true,
+    );
   }
 
-  /// Internal: handle received data.
+  /// Handle incoming data from the peer.
   void _handleData(List<int> data) {
-    final msg = String.fromCharCodes(data).trim();
-    _receivedController.add(msg);
+    final raw = String.fromCharCodes(data);
+    // Split in case multiple messages arrive together
+    for (final msg in raw.split('\n')) {
+      final trimmed = msg.trim();
+      if (trimmed.isNotEmpty) {
+        _receivedController.add(trimmed);
+      }
+    }
   }
 
   void _onSocketDone() {
+    _socket?.destroy();
     _socket = null;
   }
 
-  void dispose() {
-    _serverSocket?.close();
-    _socket?.destroy();
-    _receivedController.close();
+  void _handleSocketError(Object error) {
+    // Optionally log or handle socket errors
+    _onSocketDone();
   }
 
-  bool get isConnected => _socket != null;
+  void _handleServerError(Object error) {
+    // Optionally log or handle server errors
+    dispose();
+  }
+
+  /// Cleanly close all resources.
+  Future<void> dispose() async {
+    try {
+      await _serverSocket?.close();
+    } catch (_) {}
+    try {
+      _socket?.destroy();
+    } catch (_) {}
+    _serverSocket = null;
+    _socket = null;
+    // Do NOT close the _receivedController here if you want to reconnect/reuse!
+    // Only close this when the whole app is shutting down.
+  }
 }

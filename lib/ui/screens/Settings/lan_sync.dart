@@ -1,8 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
-// import 'package:harmonymusic/services/lan_sync_service.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 class LanSyncSettingsUI extends StatefulWidget {
   const LanSyncSettingsUI({super.key});
@@ -16,14 +17,13 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
   String status = 'Not connected';
   final ipController = TextEditingController();
   final portController = TextEditingController(text: "4040");
-  LanConnectionService? _conn;
-  // LanSyncService? _sync;
+  List<String> _hostIps = [];
 
   @override
   void dispose() {
     ipController.dispose();
     portController.dispose();
-    _conn?.dispose();
+    // Not needed: connection cleanup now handled in controller
     super.dispose();
   }
 
@@ -31,37 +31,44 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
     setState(() {
       status = "Connecting...";
     });
-    _conn?.dispose();
-    _conn = LanConnectionService();
-    // _sync = LanSyncService(_conn!);
+
+    final lanSync = Get.find<LanSyncController>();
+    lanSync.disconnect(); // Clean up any previous connection
+
+    final conn = LanConnectionService();
     try {
       if (isHost) {
         final port = int.tryParse(portController.text) ?? 4040;
-        final listeningPort = await _conn!.startAsServer(port: port);
+        final listeningPort = await conn.startAsServer(port: port);
         final interfaces = await NetworkInterface.list(
             type: InternetAddressType.IPv4, includeLinkLocal: false);
-        final ip = interfaces
-            .firstWhere((iface) => iface.addresses.isNotEmpty)
-            .addresses
-            .first
-            .address;
+        _hostIps = interfaces
+            .expand((iface) => iface.addresses)
+            .map((addr) => addr.address)
+            .where((ip) => !ip.startsWith('127.')) // filter out localhost
+            .toList();
+        lanSync.setHost(conn);
         setState(() {
-          status = "Hosting on $ip:$listeningPort\nWaiting for client...";
+          status =
+              "Hosting on:\n${_hostIps.map((ip) => "$ip:$listeningPort").join('\n')}\nWaiting for client...";
         });
       } else {
         final ip = ipController.text.trim();
         final port = int.tryParse(portController.text) ?? 4040;
-        await _conn!.connectToServer(ip, port);
+        await conn.connectToServer(ip, port);
+        lanSync.setClient(conn);
         setState(() {
           status = "Connected to $ip:$port";
         });
       }
-      _conn!.onReceived.listen((msg) {
+
+      conn.onReceived.listen((msg) {
         setState(() {
           status = "Connected!\nLast received: $msg";
         });
       });
     } catch (e) {
+      lanSync.disconnect();
       setState(() {
         status = "Connection failed: $e";
       });
@@ -69,7 +76,8 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
   }
 
   void disconnect() {
-    _conn?.dispose();
+    final lanSync = Get.find<LanSyncController>();
+    lanSync.disconnect();
     setState(() {
       status = "Not connected";
     });
@@ -104,6 +112,14 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
             ),
           ],
         ),
+        if (isHost && _hostIps.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8.0),
+            child: Text(
+              "Your Host IPs:\n${_hostIps.join('\n')}",
+              style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+            ),
+          ),
         if (!isHost)
           TextField(
             controller: ipController,
