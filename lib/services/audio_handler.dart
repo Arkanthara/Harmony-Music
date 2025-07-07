@@ -345,11 +345,33 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     //   await _player.play();
     //   return;
     // }
+    // LAN SYNC: if client, send PLAY to host
+    final lanSync = Get.isRegistered<LanSyncController>()
+        ? Get.find<LanSyncController>()
+        : null;
+    if (lanSync != null &&
+        lanSync.isConnected &&
+        lanSync.isClient &&
+        lanSync.sync != null) {
+      lanSync.sync!.sendCommand('PLAY');
+    }
     await _player.play();
   }
 
   @override
-  Future<void> pause() => _player.pause();
+  Future<void> pause() async {
+    // LAN SYNC: if client, send PAUSE to host
+    final lanSync = Get.isRegistered<LanSyncController>()
+        ? Get.find<LanSyncController>()
+        : null;
+    if (lanSync != null &&
+        lanSync.isConnected &&
+        lanSync.isClient &&
+        lanSync.sync != null) {
+      lanSync.sync!.sendCommand('PAUSE');
+    }
+    _player.pause();
+  }
 
   @override
   Future<void> seek(Duration position) => _player.seek(position);
