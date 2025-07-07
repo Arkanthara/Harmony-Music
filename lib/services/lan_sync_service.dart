@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/services/audio_handler.dart';
@@ -5,9 +6,14 @@ import 'package:harmonymusic/services/lan_sync_controller.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
 
 /// Service to handle sending/receiving song URL and playback commands for LAN sync.
-/// This service always uses the current connection from the global LanSyncController.
 class LanSyncService {
-  /// Always access the global controller for current connection/services.
+  LanSyncService._internal();
+  static final LanSyncService _instance = LanSyncService._internal();
+  factory LanSyncService() => _instance;
+
+  StreamSubscription<String>? _connSub;
+  LanConnectionService? _lastConnection;
+
   LanSyncController get lanSync => Get.find<LanSyncController>();
   LanConnectionService? get _connection => lanSync.conn;
 
@@ -28,9 +34,17 @@ class LanSyncService {
     }
   }
 
-  /// Start listening for peer commands, should be called after connection is set in controller.
+  /// Start listening for peer commands; call after each (re)connect.
   void start() {
-    _connection?.onReceived.listen(_onReceived);
+    if (_connection == null) return;
+    // Avoid duplicate listeners
+    if (_lastConnection == _connection && _connSub != null) return;
+
+    // Cancel previous subscription if switching connections
+    _connSub?.cancel();
+    _lastConnection = _connection;
+
+    _connSub = _connection!.onReceived.listen(_onReceived);
   }
 
   /// Internal: handle received messages and trigger actions on host.
@@ -38,9 +52,11 @@ class LanSyncService {
     final audioHandler = Get.find<MyAudioHandler>();
     if (msg.startsWith('PLAY_SONG|')) {
       final parts = msg.split('|');
+      if (parts.length < 2) return;
       final url = parts[1];
-      final id = parts.length > 2 ? parts[2] : '';
-      final title = parts.length > 3 ? parts[3] : 'Received Song';
+      final id = parts.length > 2 && parts[2].isNotEmpty ? parts[2] : url;
+      final title =
+          parts.length > 3 && parts[3].isNotEmpty ? parts[3] : 'Received Song';
       await _playReceivedSong(url, id: id, title: title);
     } else if (msg == 'PLAY') {
       await audioHandler.play();
@@ -68,5 +84,12 @@ class LanSyncService {
       extras: {'url': url},
     );
     await audioHandler.customAction('setSourceNPlay', {'mediaItem': mediaItem});
+  }
+
+  /// Clean up the listener when done (e.g., on app close).
+  void dispose() {
+    _connSub?.cancel();
+    _connSub = null;
+    _lastConnection = null;
   }
 }
