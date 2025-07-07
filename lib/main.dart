@@ -95,6 +95,7 @@ Future<void> startApplicationServices() async {
   Get.lazyPut(() => SettingsScreenController(), fenix: true);
   Get.lazyPut(() => Downloader(), fenix: true);
   Get.lazyPut(() => LanSyncController(), fenix: true);
+  Get.lazyPut(() => MyAudioHandler(), fenix: true);
   if (GetPlatform.isDesktop) {
     Get.lazyPut(() => SearchScreenController(), fenix: true);
     Get.put(DesktopSystemTray());

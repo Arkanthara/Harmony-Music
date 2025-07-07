@@ -60,8 +60,8 @@ class LanSyncSettingsUIState extends State<LanSyncSettingsUI> {
     final conn = LanConnectionService();
     try {
       if (isHost) {
-        // final port = int.tryParse(portController.text) ?? 4040;
-        // final listeningPort = await conn.startAsServer(port: port);
+        final port = int.tryParse(portController.text) ?? 4040;
+        await conn.startAsServer(port: port);
         await _updateHostIps();
         lanSync.setHost(conn);
       } else {
