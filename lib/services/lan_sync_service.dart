@@ -1,15 +1,18 @@
 import 'dart:async';
-import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/services/audio_handler.dart';
 import 'package:harmonymusic/services/lan_sync_controller.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
+import 'package:harmonymusic/ui/navigator.dart';
+import 'package:harmonymusic/ui/screens/Search/search_screen_controller.dart';
+import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
 
 /// Service to handle sending/receiving song URL and playback commands for LAN sync.
 class LanSyncService {
   LanSyncService._internal();
   static final LanSyncService _instance = LanSyncService._internal();
   factory LanSyncService() => _instance;
+  final searchScreenController = Get.put(SearchScreenController());
 
   StreamSubscription<String>? _connSub;
   LanConnectionService? _lastConnection;
@@ -18,9 +21,9 @@ class LanSyncService {
   LanConnectionService? get _connection => lanSync.conn;
 
   /// Send a song URL (and optional title/id) to peer if connected.
-  void sendSong(String url, {String? id, String? title}) {
+  void sendSong(String url, {String? id, String? title, String? artist}) {
     if (_connection == null) return;
-    final msg = 'PLAY_SONG|$url|${id ?? ""}|${title ?? ""}';
+    final msg = 'PLAY_SONG|$url|${id ?? ""}|${title ?? ""}|${artist ?? ""}';
     _connection!.send(msg);
   }
 
@@ -57,7 +60,10 @@ class LanSyncService {
       final id = parts.length > 2 && parts[2].isNotEmpty ? parts[2] : url;
       final title =
           parts.length > 3 && parts[3].isNotEmpty ? parts[3] : 'Received Song';
-      await _playReceivedSong(url, id: id, title: title);
+      final artist = parts.length > 4 && parts[4].isNotEmpty
+          ? parts[4]
+          : 'Received Artist';
+      await _playReceivedSong(url, id, title, artist);
     } else if (msg == 'PLAY') {
       await audioHandler.play();
     } else if (msg == 'PAUSE') {
@@ -74,16 +80,73 @@ class LanSyncService {
   }
 
   /// Use AudioHandler to play the received song.
-  Future<void> _playReceivedSong(String url,
-      {String? id, String? title}) async {
-    final audioHandler = Get.find<MyAudioHandler>();
-    final mediaItem = MediaItem(
-      id: id ?? url,
-      album: '',
-      title: title ?? 'Received Song',
-      extras: {'url': url},
-    );
-    await audioHandler.customAction('setSourceNPlay', {'mediaItem': mediaItem});
+  Future<void> _playReceivedSong(
+      String url, String id, String title, String artist) async {
+    String val;
+    if (title == 'Received Song') {
+      searchScreenController.filterLinks(Uri.parse(url));
+      searchScreenController.reset();
+      return;
+    } else if (artist == 'Received Artist') {
+      val = title;
+    } else {
+      val = '$title $artist';
+    }
+
+    Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+        id: ScreenNavigationSetup.id, arguments: val);
+    searchScreenController.addToHistryQueryList(val);
+
+    // final isEmpty = searchScreenController
+    //         .suggestionList.isEmpty ||
+    //     searchScreenController.textInputController.text ==
+    //         "";
+    // final list = isEmpty
+    //     ? searchScreenController.historyQuerylist.toList()
+    //     : searchScreenController.suggestionList.toList();
+    // return ListView(
+    //     padding: const EdgeInsets.only(top: 5, bottom: 400),
+    //     physics: const BouncingScrollPhysics(
+    //         parent: AlwaysScrollableScrollPhysics()),
+    //     children: searchScreenController.urlPasted.isTrue
+    //         ? [
+    //             InkWell(
+    //               onTap: () {
+    //                 searchScreenController.filterLinks(
+    //                     Uri.parse(searchScreenController
+    //                         .textInputController.text));
+    //                 searchScreenController.reset();
+    //               },
+    //               child: Padding(
+    //                 padding: const EdgeInsets.symmetric(
+    //                     vertical: 10.0),
+    //                 child: SizedBox(
+    //                   width: double.maxFinite,
+    //                   height: 60,
+    //                   child: Center(
+    //                       child: Text(
+    //                     "urlSearchDes".tr,
+    //                     style: Theme.of(context)
+    //                         .textTheme
+    //                         .titleMedium,
+    //                   )),
+    //                 ),
+    //               ),
+    //             )
+    //           ]
+    //         : list
+    //             .map((item) => SearchItem(
+    //                 queryString: item,
+    //                 isHistoryString: isEmpty))
+    //             .toList());
+    // final audioHandler = Get.find<MyAudioHandler>();
+    // final mediaItem = MediaItem(
+    //   id: id ?? url,
+    //   album: '',
+    //   title: title ?? 'Received Song',
+    //   extras: {'url': url},
+    // );
+    // await audioHandler.customAction('setSourceNPlay', {'mediaItem': mediaItem});
   }
 
   /// Clean up the listener when done (e.g., on app close).

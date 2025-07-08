@@ -512,6 +512,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             currentSong.extras?['url'] ?? currentSong.id,
             id: currentSong.id,
             title: currentSong.title,
+            artist: currentSong.artist,
           );
         }
         playbackState
@@ -600,6 +601,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
             currMed.extras?['url'] ?? currMed.id,
             id: currMed.id,
             title: currMed.title,
+            artist: currMed.artist,
           );
         }
         await _playList.add(_createAudioSource(currMed));
