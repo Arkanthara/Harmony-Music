@@ -4,6 +4,7 @@ import 'package:harmonymusic/services/audio_handler.dart';
 import 'package:harmonymusic/services/lan_sync_controller.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
 import 'package:harmonymusic/ui/navigator.dart';
+import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/screens/Search/search_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -55,6 +56,7 @@ class LanSyncService {
   /// Internal: handle received messages and trigger actions on host.
   void _onReceived(String msg) async {
     final audioHandler = Get.find<MyAudioHandler>();
+    final playerController = Get.find<PlayerController>();
     if (msg.startsWith('PLAY_SONG|')) {
       final parts = msg.split('|');
       if (parts.length < 2) return;
@@ -66,14 +68,26 @@ class LanSyncService {
           ? parts[4]
           : 'Received Artist';
       await _playReceivedSong(url, id, title, artist);
+    } else if (msg.startsWith('SEARCH|')) {
+      final parts = msg.split('|');
+      if (parts.length < 2) return;
+      final search = parts[1];
+      if (search.contains("https://")) {
+        searchScreenController.filterLinks(Uri.parse(search));
+        searchScreenController.reset();
+        return;
+      }
+      Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+          id: ScreenNavigationSetup.id, arguments: search);
+      searchScreenController.addToHistryQueryList(search);
     } else if (msg == 'PLAY') {
-      await audioHandler.play();
+      playerController.play();
     } else if (msg == 'PAUSE') {
-      await audioHandler.pause();
+      playerController.pause();
     } else if (msg == 'NEXT') {
-      await audioHandler.skipToNext();
+      playerController.next();
     } else if (msg == 'PREV') {
-      await audioHandler.skipToPrevious();
+      playerController.prev();
     } else if (msg.startsWith('SEEK|')) {
       final ms = int.tryParse(msg.split('|')[1]) ?? 0;
       await audioHandler.seek(Duration(milliseconds: ms));

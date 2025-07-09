@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 import 'components/search_item.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -14,6 +15,7 @@ class SearchScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final searchScreenController = Get.put(SearchScreenController());
     final settingsScreenController = Get.find<SettingsScreenController>();
+    final lanSyncController = Get.find<LanSyncController>();
     final topPadding = context.isLandscape ? 50.0 : 80.0;
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -71,6 +73,10 @@ class SearchScreen extends StatelessWidget {
                       textInputAction: TextInputAction.search,
                       onChanged: searchScreenController.onChanged,
                       onSubmitted: (val) {
+                        if (lanSyncController.isConnected &&
+                            lanSyncController.isClient) {
+                          lanSyncController.sync!.sendCommand('SEARCH|$val');
+                        }
                         if (val.contains("https://")) {
                           searchScreenController.filterLinks(Uri.parse(val));
                           searchScreenController.reset();
