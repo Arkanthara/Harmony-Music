@@ -16,8 +16,10 @@ class LanSyncService {
   static final LanSyncService _instance = LanSyncService._internal();
   factory LanSyncService() => _instance;
   final searchScreenController = Get.put(SearchScreenController());
-  final SearchResultScreenController searchResScrController =
-      Get.find<SearchResultScreenController>();
+  final searchResScrController =
+      Get.isRegistered<SearchResultScreenController>()
+          ? Get.find<SearchResultScreenController>()
+          : null;
 
   StreamSubscription<String>? _connSub;
   LanConnectionService? _lastConnection;
@@ -87,7 +89,7 @@ class LanSyncService {
       final parts = msg.split('|');
       if (parts.length < 2) return;
       final tab = int.parse(parts[1]);
-      searchResScrController.onDestinationSelected(tab);
+      searchResScrController?.onDestinationSelected(tab);
     } else if (msg == 'PLAY') {
       playerController.play();
     } else if (msg == 'PAUSE') {
