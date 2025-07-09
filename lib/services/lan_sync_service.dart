@@ -85,7 +85,8 @@ class LanSyncService {
   Future<void> _playReceivedSong(
       String url, String id, String title, String artist) async {
     String val;
-    if (title == 'Received Song') {
+    // if (title == 'Received Song') {
+    if (true) {
       searchScreenController.filterLinks(Uri.parse(url));
       searchScreenController.reset();
       return;
@@ -95,9 +96,9 @@ class LanSyncService {
       val = '$title $artist';
     }
 
-    Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-        id: ScreenNavigationSetup.id, arguments: val);
-    searchScreenController.addToHistryQueryList(val);
+    // Get.toNamed(ScreenNavigationSetup.searchResultScreen,
+    //     id: ScreenNavigationSetup.id, arguments: val);
+    // searchScreenController.addToHistryQueryList(val);
 
     // final isEmpty = searchScreenController
     //         .suggestionList.isEmpty ||
