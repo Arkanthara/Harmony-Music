@@ -7,8 +7,6 @@ import 'package:harmonymusic/ui/navigator.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
 import 'package:harmonymusic/ui/screens/Search/search_result_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Search/search_screen_controller.dart';
-import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 /// Service to handle sending/receiving song URL and playback commands for LAN sync.
 class LanSyncService {
