@@ -1,6 +1,7 @@
 import 'package:buttons_tabbar/buttons_tabbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 import 'package:harmonymusic/ui/widgets/loader.dart';
 import 'package:harmonymusic/ui/widgets/search_related_widgets.dart';
 
@@ -16,6 +17,7 @@ class SearchResultScreenBN extends StatelessWidget {
     final SearchResultScreenController searchResScrController =
         Get.find<SearchResultScreenController>();
     final topPadding = context.isLandscape ? 50.0 : 80.0;
+    final lanSync = Get.find<LanSyncController>();
     return Scaffold(
       body: Padding(
           padding: EdgeInsets.only(
@@ -85,9 +87,13 @@ class SearchResultScreenBN extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(left: 15.0, top: 10),
                             child: ButtonsTabBar(
-                              onTap:
-                                  searchResScrController.onDestinationSelected,
-
+                              onTap: (tab) {
+                                if (lanSync.isClient && lanSync.isConnected) {
+                                  lanSync.sync!.sendCommand('TAB|$tab');
+                                }
+                                searchResScrController
+                                    .onDestinationSelected(tab);
+                              },
                               controller: searchResScrController.tabController,
                               contentPadding:
                                   const EdgeInsets.only(left: 15, right: 15),

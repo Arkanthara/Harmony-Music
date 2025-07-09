@@ -5,6 +5,7 @@ import 'package:harmonymusic/services/lan_sync_controller.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
 import 'package:harmonymusic/ui/navigator.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
+import 'package:harmonymusic/ui/screens/Search/search_result_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Search/search_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -15,6 +16,8 @@ class LanSyncService {
   static final LanSyncService _instance = LanSyncService._internal();
   factory LanSyncService() => _instance;
   final searchScreenController = Get.put(SearchScreenController());
+  final SearchResultScreenController searchResScrController =
+      Get.find<SearchResultScreenController>();
 
   StreamSubscription<String>? _connSub;
   LanConnectionService? _lastConnection;
@@ -80,6 +83,11 @@ class LanSyncService {
       Get.toNamed(ScreenNavigationSetup.searchResultScreen,
           id: ScreenNavigationSetup.id, arguments: search);
       searchScreenController.addToHistryQueryList(search);
+    } else if (msg.startsWith('TAB|')) {
+      final parts = msg.split('|');
+      if (parts.length < 2) return;
+      final tab = int.parse(parts[1]);
+      searchResScrController.onDestinationSelected(tab);
     } else if (msg == 'PLAY') {
       playerController.play();
     } else if (msg == 'PAUSE') {
