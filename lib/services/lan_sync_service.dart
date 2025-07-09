@@ -6,6 +6,7 @@ import 'package:harmonymusic/services/lan_connection_service.dart';
 import 'package:harmonymusic/ui/navigator.dart';
 import 'package:harmonymusic/ui/screens/Search/search_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Settings/settings_screen_controller.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Service to handle sending/receiving song URL and playback commands for LAN sync.
 class LanSyncService {
@@ -22,8 +23,9 @@ class LanSyncService {
 
   /// Send a song URL (and optional title/id) to peer if connected.
   void sendSong(String url, {String? id, String? title, String? artist}) {
+    String newurl = "https://music.youtube.com/watch?v=$id";
     if (_connection == null) return;
-    final msg = 'PLAY_SONG|$url|${id ?? ""}|${title ?? ""}|${artist ?? ""}';
+    final msg = 'PLAY_SONG|$newurl|${id ?? ""}|${title ?? ""}|${artist ?? ""}';
     _connection!.send(msg);
   }
 
