@@ -83,11 +83,17 @@ class LanSyncService {
       Get.toNamed(ScreenNavigationSetup.searchResultScreen,
           id: ScreenNavigationSetup.id, arguments: search);
       searchScreenController.addToHistryQueryList(search);
+      // for Desktop searchbar
+      if (GetPlatform.isDesktop) {
+        searchScreenController.focusNode.unfocus();
+      }
     } else if (msg.startsWith('TAB|')) {
       final parts = msg.split('|');
       if (parts.length < 2) return;
       final tab = int.parse(parts[1]);
       searchResScrController?.onDestinationSelected(tab);
+    } else if (msg == 'BACK') {
+      Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
     } else if (msg == 'PLAY') {
       playerController.play();
     } else if (msg == 'PAUSE') {

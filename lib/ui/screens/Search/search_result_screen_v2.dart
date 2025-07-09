@@ -32,6 +32,9 @@ class SearchResultScreenBN extends StatelessWidget {
                     child: Center(
                       child: IconButton(
                         onPressed: () {
+                          if (lanSync.isConnected && lanSync.isClient) {
+                            lanSync.sync!.sendCommand('BACK');
+                          }
                           Get.nestedKey(ScreenNavigationSetup.id)!
                               .currentState!
                               .pop();
