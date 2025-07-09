@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 import '/ui/screens/Search/search_screen_controller.dart';
 
 import '../../../navigator.dart';
@@ -13,9 +14,13 @@ class SearchItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final searchScreenController = Get.find<SearchScreenController>();
+    final lanSyncController = Get.find<LanSyncController>();
     return ListTile(
       contentPadding: const EdgeInsets.only(left: 10, right: 20),
       onTap: () {
+        if (lanSyncController.isConnected && lanSyncController.isClient) {
+          lanSyncController.sync!.sendCommand('SEARCH|$queryString');
+        }
         Get.toNamed(ScreenNavigationSetup.searchResultScreen,
             id: ScreenNavigationSetup.id, arguments: queryString);
         searchScreenController.addToHistryQueryList(queryString);
