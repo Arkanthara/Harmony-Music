@@ -40,6 +40,10 @@ class SearchScreen extends StatelessWidget {
                                   .color,
                             ),
                             onPressed: () {
+                              if (lanSyncController.isConnected &&
+                                  lanSyncController.isClient) {
+                                lanSyncController.sync!.sendCommand('BACK');
+                              }
                               Get.nestedKey(ScreenNavigationSetup.id)!
                                   .currentState!
                                   .pop();
