@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 import '/models/album.dart';
 import '../../models/artist.dart';
@@ -96,6 +97,10 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
       itemBuilder: (context, index) => SongListTile(
         song: items[index] as MediaItem,
         onTap: () {
+          final lanSync = Get.find<LanSyncController>();
+          if (lanSync.isConnected && lanSync.isClient) {
+            lanSync.sync!.sendCommand('PLAY_INDEX|$index');
+          }
           isArtistSongs
               // if song is from artist then play from artist
               ? playerController.playPlayListSong(
@@ -154,7 +159,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
               for (dynamic items in (albums[index].artists).sublist(1)) {
                 artistName = "${artistName + items['name']},";
               }
-            // ignore: empty_catches
+              // ignore: empty_catches
             } catch (e) {}
             artistName = artistName.length > 16
                 ? artistName.substring(0, 16)

@@ -15,10 +15,6 @@ class LanSyncService {
   static final LanSyncService _instance = LanSyncService._internal();
   factory LanSyncService() => _instance;
   final searchScreenController = Get.put(SearchScreenController());
-  final searchResScrController =
-      Get.isRegistered<SearchResultScreenController>()
-          ? Get.find<SearchResultScreenController>()
-          : null;
 
   StreamSubscription<String>? _connSub;
   LanConnectionService? _lastConnection;
@@ -61,6 +57,10 @@ class LanSyncService {
   Future<void> _onReceived(String msg) async {
     final audioHandler = Get.find<MyAudioHandler>();
     final playerController = Get.find<PlayerController>();
+    final searchResScrController =
+        Get.isRegistered<SearchResultScreenController>()
+            ? Get.find<SearchResultScreenController>()
+            : null;
 
     // Split the message once
     final parts = msg.split('|');
@@ -104,7 +104,7 @@ class LanSyncService {
         if (arg1 == null) return;
         final tabIndex = int.tryParse(arg1);
         if (tabIndex != null) {
-          searchResScrController?.onDestinationSelected(tabIndex);
+          searchResScrController?.tabController?.animateTo(tabIndex);
         }
         break;
 
