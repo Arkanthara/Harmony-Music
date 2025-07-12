@@ -31,8 +31,12 @@ class SearchResultScreen extends StatelessWidget {
                     child: IntrinsicHeight(
                       child: Obx(
                         () => NavigationRail(
-                          onDestinationSelected:
-                              searchResScrController.onDestinationSelected,
+                          onDestinationSelected: (tab) {
+                            if (lanSync.isClient && lanSync.isConnected) {
+                              lanSync.sync!.sendCommand('TAB|$tab');
+                            }
+                            searchResScrController.onDestinationSelected(tab);
+                          },
                           minWidth: 60,
                           destinations: (searchResScrController
                                       .isResultContentFetced.value &&
