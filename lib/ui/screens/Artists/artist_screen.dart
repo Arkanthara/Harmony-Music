@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 import '/ui/screens/Artists/artist_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -18,6 +19,7 @@ class ArtistScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lanSync = Get.find<LanSyncController>();
     final playerController = Get.find<PlayerController>();
     final tag = key.hashCode.toString();
     final ArtistScreenController artistScreenController =
@@ -91,6 +93,9 @@ class ArtistScreen extends StatelessWidget {
                                       .color,
                                 ),
                                 onPressed: () {
+                                  if (lanSync.isConnected && lanSync.isClient) {
+                                    lanSync.sync!.sendCommand('BACK');
+                                  }
                                   Get.nestedKey(ScreenNavigationSetup.id)!
                                       .currentState!
                                       .pop();

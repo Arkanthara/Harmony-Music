@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:get/get.dart';
+import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/services/audio_handler.dart';
 import 'package:harmonymusic/services/lan_sync_controller.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
@@ -57,56 +58,142 @@ class LanSyncService {
   }
 
   /// Internal: handle received messages and trigger actions on host.
-  void _onReceived(String msg) async {
+  Future<void> _onReceived(String msg) async {
     final audioHandler = Get.find<MyAudioHandler>();
     final playerController = Get.find<PlayerController>();
-    if (msg.startsWith('PLAY_SONG|')) {
-      final parts = msg.split('|');
-      if (parts.length < 2) return;
-      final url = parts[1];
-      final id = parts.length > 2 && parts[2].isNotEmpty ? parts[2] : url;
-      final title =
-          parts.length > 3 && parts[3].isNotEmpty ? parts[3] : 'Received Song';
-      final artist = parts.length > 4 && parts[4].isNotEmpty
-          ? parts[4]
-          : 'Received Artist';
-      await _playReceivedSong(url, id, title, artist);
-    } else if (msg.startsWith('SEARCH|')) {
-      final parts = msg.split('|');
-      if (parts.length < 2) return;
-      final search = parts[1];
-      if (search.contains("https://")) {
-        searchScreenController.filterLinks(Uri.parse(search));
-        searchScreenController.reset();
-        return;
-      }
-      Get.toNamed(ScreenNavigationSetup.searchResultScreen,
-          id: ScreenNavigationSetup.id, arguments: search);
-      searchScreenController.addToHistryQueryList(search);
-      // for Desktop searchbar
-      if (GetPlatform.isDesktop) {
-        searchScreenController.focusNode.unfocus();
-      }
-    } else if (msg.startsWith('TAB|')) {
-      final parts = msg.split('|');
-      if (parts.length < 2) return;
-      final tab = int.parse(parts[1]);
-      searchResScrController?.onDestinationSelected(tab);
-    } else if (msg == 'BACK') {
-      Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
-    } else if (msg == 'PLAY') {
-      playerController.play();
-    } else if (msg == 'PAUSE') {
-      playerController.pause();
-    } else if (msg == 'NEXT') {
-      playerController.next();
-    } else if (msg == 'PREV') {
-      playerController.prev();
-    } else if (msg.startsWith('SEEK|')) {
-      final ms = int.tryParse(msg.split('|')[1]) ?? 0;
-      await audioHandler.seek(Duration(milliseconds: ms));
+
+    // Split the message once
+    final parts = msg.split('|');
+    final command = parts[0];
+    final arg1 = parts.length > 1 ? parts[1] : null;
+    final arg2 = parts.length > 2 ? parts[2] : null;
+    final arg3 = parts.length > 3 ? parts[3] : null;
+    final arg4 = parts.length > 4 ? parts[4] : null;
+
+    switch (command) {
+      case 'PLAY_SONG':
+        if (arg1 == null) return;
+        final url = arg1;
+        final id = (arg2?.isNotEmpty ?? false) ? arg2! : url;
+        final title = (arg3?.isNotEmpty ?? false) ? arg3! : 'Received Song';
+        final artist = (arg4?.isNotEmpty ?? false) ? arg4! : 'Received Artist';
+        await _playReceivedSong(url, id, title, artist);
+        break;
+
+      case 'SEARCH':
+        if (arg1 == null) return;
+        final search = arg1;
+        if (search.contains('https://')) {
+          searchScreenController.filterLinks(Uri.parse(search));
+          searchScreenController.reset();
+        } else {
+          Get.toNamed(
+            ScreenNavigationSetup.searchResultScreen,
+            id: ScreenNavigationSetup.id,
+            arguments: search,
+          );
+          searchScreenController.addToHistryQueryList(search);
+
+          if (GetPlatform.isDesktop) {
+            searchScreenController.focusNode.unfocus();
+          }
+        }
+        break;
+
+      case 'TAB':
+        if (arg1 == null) return;
+        final tabIndex = int.tryParse(arg1);
+        if (tabIndex != null) {
+          searchResScrController?.onDestinationSelected(tabIndex);
+        }
+        break;
+
+      case 'BACK':
+        Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
+        break;
+
+      case 'PLAY':
+        playerController.play();
+        break;
+
+      case 'PAUSE':
+        playerController.pause();
+        break;
+
+      case 'NEXT':
+        playerController.next();
+        break;
+
+      case 'PREV':
+        playerController.prev();
+        break;
+
+      case 'SEEK':
+        if (arg1 == null) return;
+        final ms = int.tryParse(arg1) ?? 0;
+        await audioHandler.seek(Duration(milliseconds: ms));
+        break;
+
+      case 'HOMESCREEN':
+        Get.toNamed(
+          ScreenNavigationSetup.homeScreen,
+          id: ScreenNavigationSetup.id,
+        );
+        break;
+
+      case 'SEARCHSCREEN':
+        Get.toNamed(
+          ScreenNavigationSetup.searchScreen,
+          id: ScreenNavigationSetup.id,
+        );
+        break;
+
+      // case 'ALBUMSCREEN':
+      //   if (arg1 == null) return;
+      //   // Here you can fetch the Album if needed or pass dummy
+      //   final album = Album(
+      //     browseId: arg1,
+      //     // fill minimal fields
+      //   );
+      //   Get.toNamed(
+      //     ScreenNavigationSetup.albumScreen,
+      //     id: ScreenNavigationSetup.id,
+      //     arguments: (album, album.browseId),
+      //   );
+      //   break;
+
+      // case 'PLAYLISTSCREEN':
+      //   if (arg1 == null) return;
+      //   // Similarly, create dummy Playlist or fetch
+      //   final playlist = Playlist(
+      //     browseId: arg1,
+      //     // fill minimal fields
+      //   );
+      //   Get.toNamed(
+      //     ScreenNavigationSetup.playlistScreen,
+      //     id: ScreenNavigationSetup.id,
+      //     arguments: [playlist, playlist.browseId],
+      //   );
+      //   break;
+
+      // // You can add ARTISTSCREEN similarly
+      // case 'ARTISTSCREEN':
+      //   if (arg1 == null) return;
+      //   final artist = Artist(
+      //     browseId: arg1,
+      //     // fill minimal fields
+      //   );
+      //   Get.toNamed(
+      //     ScreenNavigationSetup.artistScreen,
+      //     id: ScreenNavigationSetup.id,
+      //     arguments: artist,
+      //   );
+      //   break;
+
+      default:
+        print('Unknown command: $command');
+        break;
     }
-    // Extend as needed for further commands
   }
 
   /// Use AudioHandler to play the received song.

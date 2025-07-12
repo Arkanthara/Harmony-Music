@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:harmonymusic/models/album.dart';
 import 'package:harmonymusic/models/artist.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 import 'package:harmonymusic/ui/screens/Artists/artist_screen.dart';
 import 'package:harmonymusic/ui/screens/Home/home_screen.dart';
@@ -28,17 +29,20 @@ class ScreenNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lanSync = Get.find<LanSyncController>();
     return Navigator(
         key: Get.nestedKey(ScreenNavigationSetup.id),
         initialRoute: '/homeScreen',
         onGenerateRoute: (settings) {
           Get.routing.args = settings.arguments;
           switch (settings.name) {
-
             case ScreenNavigationSetup.homeScreen:
+              if (lanSync.isConnected && lanSync.isClient) {
+                lanSync.sync!.sendCommand('HOME');
+              }
               return GetPageRoute(
                   page: () => const HomeScreen(), settings: settings);
-            
+
             case ScreenNavigationSetup.albumScreen:
               final id = (settings.arguments as (Album?, String)).$2;
               return GetPageRoute(
@@ -46,23 +50,26 @@ class ScreenNavigation extends StatelessWidget {
                         key: Key(id),
                       ),
                   settings: settings);
-            
+
             case ScreenNavigationSetup.playlistScreen:
-             final id = (settings.arguments as List)[1] as String;
+              final id = (settings.arguments as List)[1] as String;
               return GetPageRoute(
                   page: () => PlaylistScreen(
                         key: Key(id),
                       ),
                   settings: settings);
-            
+
             case ScreenNavigationSetup.searchScreen:
+              if (lanSync.isConnected && lanSync.isClient) {
+                lanSync.sync!.sendCommand('HOME');
+              }
               return GetPageRoute(
                   page: () => const SearchScreen(), settings: settings);
-            
+
             case ScreenNavigationSetup.searchResultScreen:
               return GetPageRoute(
                   page: () => const SearchResultScreen(), settings: settings);
-            
+
             case ScreenNavigationSetup.artistScreen:
               final args = settings.arguments as List;
               final id = args[0] ? args[1] : (args[1] as Artist).browseId;
@@ -71,7 +78,7 @@ class ScreenNavigation extends StatelessWidget {
                         key: Key(id),
                       ),
                   settings: settings);
-            
+
             default:
               return null;
           }

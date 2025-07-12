@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 import '/ui/screens/Search/search_result_screen_v2.dart';
 import '/ui/screens/Settings/settings_screen_controller.dart';
@@ -15,6 +16,7 @@ class SearchResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final lanSync = Get.find<LanSyncController>();
     final searchResScrController = Get.put(SearchResultScreenController());
     return GetPlatform.isDesktop ||
             Get.find<SettingsScreenController>().isBottomNavBarEnabled.isTrue
@@ -58,6 +60,9 @@ class SearchResultScreen extends StatelessWidget {
                                       .color,
                                 ),
                                 onPressed: () {
+                                  if (lanSync.isConnected && lanSync.isClient) {
+                                    lanSync.sync!.sendCommand('BACK');
+                                  }
                                   Get.nestedKey(ScreenNavigationSetup.id)!
                                       .currentState!
                                       .pop();

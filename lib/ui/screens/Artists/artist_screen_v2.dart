@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/services/lan_sync_controller.dart';
 
 import '/ui/screens/Artists/artist_screen.dart' show AboutArtist;
 import '../../navigator.dart';
@@ -15,6 +16,7 @@ class ArtistScreenBN extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final separatedContent = artistScreenController.sepataredContent;
+    final lanSync = Get.find<LanSyncController>();
     return Scaffold(
       appBar: AppBar(
           toolbarHeight: 85,
@@ -23,6 +25,9 @@ class ArtistScreenBN extends StatelessWidget {
             padding: const EdgeInsets.only(top: 25.0),
             child: IconButton(
                 onPressed: () {
+                  if (lanSync.isConnected && lanSync.isClient) {
+                    lanSync.sync!.sendCommand('BACK');
+                  }
                   Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
                 },
                 icon: const Icon(Icons.arrow_back_ios_new)),
