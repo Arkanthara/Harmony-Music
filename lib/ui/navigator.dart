@@ -61,7 +61,7 @@ class ScreenNavigation extends StatelessWidget {
 
             case ScreenNavigationSetup.searchScreen:
               if (lanSync.isConnected && lanSync.isClient) {
-                lanSync.sync!.sendCommand('HOME');
+                lanSync.sync!.sendCommand('SEARCHSCREEN');
               }
               return GetPageRoute(
                   page: () => const SearchScreen(), settings: settings);

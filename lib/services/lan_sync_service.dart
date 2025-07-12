@@ -134,7 +134,7 @@ class LanSyncService {
         await audioHandler.seek(Duration(milliseconds: ms));
         break;
 
-      case 'HOMESCREEN':
+      case 'HOME':
         Get.toNamed(
           ScreenNavigationSetup.homeScreen,
           id: ScreenNavigationSetup.id,
