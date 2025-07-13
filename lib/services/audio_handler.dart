@@ -491,9 +491,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           return;
         }
         currentSongUrl = currentSong.extras!['url'] = streamInfo.audio!.url;
-        if (lanSync.isConnected && lanSync.isClient) {
-          lanSync.sync!.sendSong(currentSong.id);
-        }
         playbackState
             .add(playbackState.value.copyWith(queueIndex: currentIndex));
         await _playList.add(_createAudioSource(currentSong));
@@ -573,9 +570,6 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           return;
         }
         currentSongUrl = currMed.extras!['url'] = streamInfo.audio!.url;
-        if (lanSync.isConnected && lanSync.isClient) {
-          lanSync.sync!.sendSong(currMed.id);
-        }
         await _playList.add(_createAudioSource(currMed));
         isSongLoading = false;
 
