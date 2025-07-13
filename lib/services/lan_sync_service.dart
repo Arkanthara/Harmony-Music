@@ -1,13 +1,18 @@
 import 'dart:async';
+import 'package:audio_service/audio_service.dart';
 import 'package:get/get.dart';
+import 'package:harmonymusic/models/playling_from.dart';
 import 'package:harmonymusic/models/playlist.dart';
 import 'package:harmonymusic/services/audio_handler.dart';
 import 'package:harmonymusic/services/lan_sync_controller.dart';
 import 'package:harmonymusic/services/lan_connection_service.dart';
 import 'package:harmonymusic/ui/navigator.dart';
 import 'package:harmonymusic/ui/player/player_controller.dart';
+import 'package:harmonymusic/ui/screens/Artists/artist_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Search/search_result_screen_controller.dart';
 import 'package:harmonymusic/ui/screens/Search/search_screen_controller.dart';
+import 'package:harmonymusic/ui/widgets/list_widget.dart';
+import 'package:harmonymusic/ui/widgets/separate_tab_item_widget.dart';
 
 /// Service to handle sending/receiving song URL and playback commands for LAN sync.
 class LanSyncService {
@@ -15,6 +20,7 @@ class LanSyncService {
   static final LanSyncService _instance = LanSyncService._internal();
   factory LanSyncService() => _instance;
   final searchScreenController = Get.put(SearchScreenController());
+  int tabNumber = 0;
 
   StreamSubscription<String>? _connSub;
   LanConnectionService? _lastConnection;
@@ -61,6 +67,7 @@ class LanSyncService {
         Get.isRegistered<SearchResultScreenController>()
             ? Get.find<SearchResultScreenController>()
             : null;
+    final artistController = Get.find<ArtistScreenController>();
 
     // Split the message once
     final parts = msg.split('|');
@@ -71,14 +78,14 @@ class LanSyncService {
     final arg4 = parts.length > 4 ? parts[4] : null;
 
     switch (command) {
-      case 'PLAY_SONG':
-        if (arg1 == null) return;
-        final url = arg1;
-        final id = (arg2?.isNotEmpty ?? false) ? arg2! : url;
-        final title = (arg3?.isNotEmpty ?? false) ? arg3! : 'Received Song';
-        final artist = (arg4?.isNotEmpty ?? false) ? arg4! : 'Received Artist';
-        await _playReceivedSong(url, id, title, artist);
-        break;
+      // case 'PLAY_SONG':
+      //   if (arg1 == null) return;
+      //   final url = arg1;
+      //   final id = (arg2?.isNotEmpty ?? false) ? arg2! : url;
+      //   final title = (arg3?.isNotEmpty ?? false) ? arg3! : 'Received Song';
+      //   final artist = (arg4?.isNotEmpty ?? false) ? arg4! : 'Received Artist';
+      //   // await _playReceivedSong(url, id, title, artist);
+      //   break;
 
       case 'SEARCH':
         if (arg1 == null) return;
@@ -104,6 +111,7 @@ class LanSyncService {
         if (arg1 == null) return;
         final tabIndex = int.tryParse(arg1);
         if (tabIndex != null) {
+          tabNumber = tabIndex;
           searchResScrController?.tabController?.animateTo(tabIndex);
         }
         break;
@@ -148,6 +156,43 @@ class LanSyncService {
         );
         break;
 
+      case 'PLAY_INDEX':
+        if (parts.length < 3) return;
+        final index = int.tryParse(parts[1]) ?? 0;
+        final source = bool.parse(parts[2]); // RESULT or ARTIST
+
+        List<MediaItem> itemsToPlay = [];
+
+        if (!source) {
+          final title = searchResScrController!.railItems[tabNumber - 1];
+          final content = searchResScrController.separatedResultContent[title];
+          if (content == null) return;
+          itemsToPlay = List<MediaItem>.from(content);
+          playerController.playPlayListSong(
+            itemsToPlay,
+            index,
+            playfrom: PlaylingFrom(
+              type: PlaylingFromType.PLAYLIST,
+              name: title,
+            ),
+          );
+        }
+        // else if (source == 'ARTIST') {
+        //   if (artistController.sepataredContent == null) return;
+        //   itemsToPlay = List<MediaItem>.from(artistController.artistContent!);
+        //   playerController.playPlayListSong(
+        //     itemsToPlay,
+        //     index,
+        //     playfrom: PlaylingFrom(
+        //       type: PlaylingFromType.ARTIST,
+        //       name: artistController.artist_?.name ?? "Unknown Artist",
+        //     ),
+        //   );
+        // } else {
+        //   // fallback: e.g. playlist/album
+        //   // You could add more sources here
+        // }
+        break;
       // case 'ALBUMSCREEN':
       //   if (arg1 == null) return;
       //   // Here you can fetch the Album if needed or pass dummy

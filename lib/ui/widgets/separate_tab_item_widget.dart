@@ -32,6 +32,8 @@ class SeparateTabItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('title: $title');
+    print('isResult: $isResultWidget');
     final artistController =
         Get.isRegistered<ArtistScreenController>(tag: artistControllerTag)
             ? Get.find<ArtistScreenController>(tag: artistControllerTag)

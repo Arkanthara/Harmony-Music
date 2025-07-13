@@ -99,7 +99,7 @@ class ListWidget extends StatelessWidget with RemoveSongFromPlaylistMixin {
         onTap: () {
           final lanSync = Get.find<LanSyncController>();
           if (lanSync.isConnected && lanSync.isClient) {
-            lanSync.sync!.sendCommand('PLAY_INDEX|$index');
+            lanSync.sync!.sendCommand('PLAY_INDEX|$index|$isArtistSongs');
           }
           isArtistSongs
               // if song is from artist then play from artist
