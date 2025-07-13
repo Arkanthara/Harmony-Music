@@ -64,9 +64,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   // list of shuffled queue songs ids
   List<String> shuffledQueue = [];
 
-  LanSyncController? get lanSync => Get.isRegistered<LanSyncController>()
-      ? Get.find<LanSyncController>()
-      : null;
+  LanSyncController lanSync = Get.find<LanSyncController>();
 
   final _playList =
       ConcatenatingAudioSource(children: [], useLazyPreparation: false);
@@ -346,13 +344,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
     //   return;
     // }
     // LAN SYNC: if client, send PLAY to host
-    final lanSync = Get.isRegistered<LanSyncController>()
-        ? Get.find<LanSyncController>()
-        : null;
-    if (lanSync != null &&
-        lanSync.isConnected &&
-        lanSync.isClient &&
-        lanSync.sync != null) {
+    if (lanSync.isConnected && lanSync.isClient) {
       lanSync.sync!.sendCommand('PLAY');
     }
     await _player.play();
@@ -361,13 +353,7 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
   @override
   Future<void> pause() async {
     // LAN SYNC: if client, send PAUSE to host
-    final lanSync = Get.isRegistered<LanSyncController>()
-        ? Get.find<LanSyncController>()
-        : null;
-    if (lanSync != null &&
-        lanSync.isConnected &&
-        lanSync.isClient &&
-        lanSync.sync != null) {
+    if (lanSync.isConnected && lanSync.isClient) {
       lanSync.sync!.sendCommand('PAUSE');
     }
     _player.pause();
@@ -505,15 +491,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           return;
         }
         currentSongUrl = currentSong.extras!['url'] = streamInfo.audio!.url;
-        if (lanSync?.isConnected == true &&
-            lanSync?.isClient == true &&
-            lanSync?.sync != null) {
-          lanSync!.sync!.sendSong(
-            currentSong.extras?['url'] ?? currentSong.id,
-            id: currentSong.id,
-            title: currentSong.title,
-            artist: currentSong.artist,
-          );
+        if (lanSync.isConnected && lanSync.isClient) {
+          lanSync.sync!.sendSong(currentSong.id);
         }
         playbackState
             .add(playbackState.value.copyWith(queueIndex: currentIndex));
@@ -594,15 +573,8 @@ class MyAudioHandler extends BaseAudioHandler with GetxServiceMixin {
           return;
         }
         currentSongUrl = currMed.extras!['url'] = streamInfo.audio!.url;
-        if (lanSync?.isConnected == true &&
-            lanSync?.isClient == true &&
-            lanSync?.sync != null) {
-          lanSync!.sync!.sendSong(
-            currMed.extras?['url'] ?? currMed.id,
-            id: currMed.id,
-            title: currMed.title,
-            artist: currMed.artist,
-          );
+        if (lanSync.isConnected && lanSync.isClient) {
+          lanSync.sync!.sendSong(currMed.id);
         }
         await _playList.add(_createAudioSource(currMed));
         isSongLoading = false;

@@ -29,10 +29,10 @@ class LanSyncService {
   LanConnectionService? get _connection => lanSync.conn;
 
   /// Send a song URL (and optional title/id) to peer if connected.
-  void sendSong(String url, {String? id, String? title, String? artist}) {
+  void sendSong(String id) {
     String newurl = "https://music.youtube.com/watch?v=$id";
     if (_connection == null) return;
-    final msg = 'PLAY_SONG|$newurl|${id ?? ""}|${title ?? ""}|${artist ?? ""}';
+    final msg = 'PLAY_SONG|$newurl';
     _connection!.send(msg);
   }
 
@@ -63,62 +63,59 @@ class LanSyncService {
   Future<void> _onReceived(String msg) async {
     final audioHandler = Get.find<MyAudioHandler>();
     final playerController = Get.find<PlayerController>();
-    final searchResScrController =
-        Get.isRegistered<SearchResultScreenController>()
-            ? Get.find<SearchResultScreenController>()
-            : null;
-    final artistController = Get.find<ArtistScreenController>();
+    // final searchResScrController =
+    //     Get.isRegistered<SearchResultScreenController>()
+    //         ? Get.find<SearchResultScreenController>()
+    //         : null;
+    // final artistController = Get.find<ArtistScreenController>();
 
     // Split the message once
     final parts = msg.split('|');
     final command = parts[0];
     final arg1 = parts.length > 1 ? parts[1] : null;
-    final arg2 = parts.length > 2 ? parts[2] : null;
-    final arg3 = parts.length > 3 ? parts[3] : null;
-    final arg4 = parts.length > 4 ? parts[4] : null;
+    // final arg2 = parts.length > 2 ? parts[2] : null;
+    // final arg3 = parts.length > 3 ? parts[3] : null;
+    // final arg4 = parts.length > 4 ? parts[4] : null;
 
     switch (command) {
-      // case 'PLAY_SONG':
+      case 'PLAY_SONG':
+        if (arg1 == null) return;
+        searchScreenController.filterLinks(Uri.parse(arg1));
+        searchScreenController.reset();
+        break;
+
+      // case 'SEARCH':
       //   if (arg1 == null) return;
-      //   final url = arg1;
-      //   final id = (arg2?.isNotEmpty ?? false) ? arg2! : url;
-      //   final title = (arg3?.isNotEmpty ?? false) ? arg3! : 'Received Song';
-      //   final artist = (arg4?.isNotEmpty ?? false) ? arg4! : 'Received Artist';
-      //   // await _playReceivedSong(url, id, title, artist);
+      //   final search = arg1;
+      //   if (search.contains('https://')) {
+      //     searchScreenController.filterLinks(Uri.parse(search));
+      //     searchScreenController.reset();
+      //   } else {
+      //     Get.toNamed(
+      //       ScreenNavigationSetup.searchResultScreen,
+      //       id: ScreenNavigationSetup.id,
+      //       arguments: search,
+      //     );
+      //     searchScreenController.addToHistryQueryList(search);
+
+      //     if (GetPlatform.isDesktop) {
+      //       searchScreenController.focusNode.unfocus();
+      //     }
+      //   }
       //   break;
 
-      case 'SEARCH':
-        if (arg1 == null) return;
-        final search = arg1;
-        if (search.contains('https://')) {
-          searchScreenController.filterLinks(Uri.parse(search));
-          searchScreenController.reset();
-        } else {
-          Get.toNamed(
-            ScreenNavigationSetup.searchResultScreen,
-            id: ScreenNavigationSetup.id,
-            arguments: search,
-          );
-          searchScreenController.addToHistryQueryList(search);
+      // case 'TAB':
+      //   if (arg1 == null) return;
+      //   final tabIndex = int.tryParse(arg1);
+      //   if (tabIndex != null) {
+      //     tabNumber = tabIndex;
+      //     searchResScrController?.tabController?.animateTo(tabIndex);
+      //   }
+      //   break;
 
-          if (GetPlatform.isDesktop) {
-            searchScreenController.focusNode.unfocus();
-          }
-        }
-        break;
-
-      case 'TAB':
-        if (arg1 == null) return;
-        final tabIndex = int.tryParse(arg1);
-        if (tabIndex != null) {
-          tabNumber = tabIndex;
-          searchResScrController?.tabController?.animateTo(tabIndex);
-        }
-        break;
-
-      case 'BACK':
-        Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
-        break;
+      // case 'BACK':
+      //   Get.nestedKey(ScreenNavigationSetup.id)!.currentState!.pop();
+      //   break;
 
       case 'PLAY':
         playerController.play();
@@ -142,41 +139,43 @@ class LanSyncService {
         await audioHandler.seek(Duration(milliseconds: ms));
         break;
 
-      case 'HOME':
-        Get.toNamed(
-          ScreenNavigationSetup.homeScreen,
-          id: ScreenNavigationSetup.id,
-        );
-        break;
+        // case 'HOME':
+        //   Get.toNamed(
+        //     ScreenNavigationSetup.homeScreen,
+        //     id: ScreenNavigationSetup.id,
+        //   );
+        //   break;
 
-      case 'SEARCHSCREEN':
-        Get.toNamed(
-          ScreenNavigationSetup.searchScreen,
-          id: ScreenNavigationSetup.id,
-        );
-        break;
+        // case 'SEARCHSCREEN':
+        //   Get.toNamed(
+        //     ScreenNavigationSetup.searchScreen,
+        //     id: ScreenNavigationSetup.id,
+        //   );
+        //   break;
 
-      case 'PLAY_INDEX':
-        if (parts.length < 3) return;
-        final index = int.tryParse(parts[1]) ?? 0;
-        final source = bool.parse(parts[2]); // RESULT or ARTIST
+        // case 'PLAY_INDEX':
+        //   if (parts.length < 3) return;
+        //   final index = int.tryParse(parts[1]) ?? 0;
+        //   final source = bool.parse(parts[2]); // RESULT or ARTIST
 
-        List<MediaItem> itemsToPlay = [];
+        //   List<MediaItem> itemsToPlay = [];
 
-        if (!source) {
-          final title = searchResScrController!.railItems[tabNumber - 1];
-          final content = searchResScrController.separatedResultContent[title];
-          if (content == null) return;
-          itemsToPlay = List<MediaItem>.from(content);
-          playerController.playPlayListSong(
-            itemsToPlay,
-            index,
-            playfrom: PlaylingFrom(
-              type: PlaylingFromType.PLAYLIST,
-              name: title,
-            ),
-          );
-        }
+        //   if (!source) {
+        //     final title = searchResScrController!.railItems[tabNumber - 1];
+        //     print("Szoa^;$title");
+        //     final content = searchResScrController.separatedResultContent[title];
+        //     if (content == null) return;
+        //     print("COucou");
+        //     itemsToPlay = List<MediaItem>.from(content);
+        //     playerController.playPlayListSong(
+        //       itemsToPlay,
+        //       index,
+        //       playfrom: PlaylingFrom(
+        //         type: PlaylingFromType.PLAYLIST,
+        //         name: title,
+        //       ),
+        //     );
+        //   }
         // else if (source == 'ARTIST') {
         //   if (artistController.sepataredContent == null) return;
         //   itemsToPlay = List<MediaItem>.from(artistController.artistContent!);
