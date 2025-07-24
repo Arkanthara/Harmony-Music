@@ -77,6 +77,8 @@ class PlayerController extends GetxController
   var _newSongFlag = true;
   final isCurrentSongBuffered = false.obs;
 
+  final lanSync = Get.find<LanSyncController>();
+
   late StreamSubscription<bool> keyboardSubscription;
 
   @override
@@ -557,10 +559,16 @@ class PlayerController extends GetxController
   }
 
   void prev() {
+    if (lanSync.isConnected && lanSync.isClient) {
+      lanSync.sync!.sendCommand('PREV');
+    }
     _audioHandler.skipToPrevious();
   }
 
   Future<void> next() async {
+    if (lanSync.isConnected && lanSync.isClient) {
+      lanSync.sync!.sendCommand('NEXT');
+    }
     await _audioHandler.skipToNext();
   }
 
