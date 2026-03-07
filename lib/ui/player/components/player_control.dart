@@ -165,7 +165,7 @@ class PlayerControlWidget extends StatelessWidget {
 
 Widget _nextButton(PlayerController playerController, BuildContext context) {
   return Obx(() {
-    final isLastSong = !playerController.isRemoteClientModeActive &&
+    final isLastSong = !playerController.isRemoteClientModeActive.value &&
         (playerController.currentQueue.isEmpty ||
         (!(playerController.isShuffleModeEnabled.isTrue ||
                 playerController.isQueueLoopModeEnabled.isTrue) &&

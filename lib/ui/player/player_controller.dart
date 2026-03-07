@@ -79,11 +79,9 @@ class PlayerController extends GetxController
 
   // track whether wakelock is currently enabled to avoid repeated calls
   bool _wakelockActive = false;
-  bool _remoteClientModeActive = false;
+  final isRemoteClientModeActive = false.obs;
   int? _volumeBeforeRemoteMode;
   String? _lastRemoteSongId;
-
-  bool get isRemoteClientModeActive => _remoteClientModeActive;
 
   var _newSongFlag = true;
   final isCurrentSongBuffered = false.obs;
@@ -175,7 +173,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInPlayerState() {
     _audioHandler.playbackState.listen((playerState) {
-      if (_remoteClientModeActive) return;
+      if (isRemoteClientModeActive.value) return;
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
       if (processingState == AudioProcessingState.loading) {
@@ -218,7 +216,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInPosition() {
     AudioService.position.listen((position) {
-      if (_remoteClientModeActive) return;
+      if (isRemoteClientModeActive.value) return;
       final oldState = progressBarStatus.value;
       if (isSleepEndOfSongActive.isTrue) {
         timerDurationLeft.value = oldState.total.inSeconds - position.inSeconds;
@@ -237,7 +235,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInBufferedPosition() {
     _audioHandler.playbackState.listen((playbackState) {
-      if (_remoteClientModeActive) return;
+      if (isRemoteClientModeActive.value) return;
       final oldState = progressBarStatus.value;
       if (progressBarStatus.value.total.inSeconds != 0 &&
           playbackState.bufferedPosition.inSeconds /
@@ -259,7 +257,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInDuration() {
     _audioHandler.mediaItem.listen((mediaItem) async {
-      if (_remoteClientModeActive) return;
+      if (isRemoteClientModeActive.value) return;
       final oldState = progressBarStatus.value;
       progressBarStatus.update((val) {
         val!.total = mediaItem?.duration ?? Duration.zero;
@@ -294,7 +292,7 @@ class PlayerController extends GetxController
 
   void _listenForPlaylistChange() {
     _audioHandler.queue.listen((queue) {
-      if (_remoteClientModeActive) return;
+      if (isRemoteClientModeActive.value) return;
       currentQueue.value = queue;
       currentQueue.refresh();
     });
@@ -313,8 +311,8 @@ class PlayerController extends GetxController
   }
 
   void enableRemoteClientMode() {
-    if (_remoteClientModeActive) return;
-    _remoteClientModeActive = true;
+    if (isRemoteClientModeActive.value) return;
+    isRemoteClientModeActive.value = true;
     _volumeBeforeRemoteMode = volume.value;
     _audioHandler.pause();
     _audioHandler.customAction("setVolume", {"value": 0});
@@ -322,8 +320,8 @@ class PlayerController extends GetxController
   }
 
   void disableRemoteClientMode() {
-    if (!_remoteClientModeActive) return;
-    _remoteClientModeActive = false;
+    if (isRemoteClientModeActive.isFalse) return;
+    isRemoteClientModeActive.value = false;
     final restoredVolume =
         _volumeBeforeRemoteMode ?? Hive.box("AppPrefs").get("volume") ?? 100;
     _audioHandler.customAction("setVolume", {"value": restoredVolume});
