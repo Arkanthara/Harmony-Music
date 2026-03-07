@@ -2059,7 +2059,6 @@ Map<String, Map<String, String>> get keys => {
     "connectedTo": "Connected to",
     "connectionFailed": "Connection failed",
     "scanNetwork": "Scan Network",
-    "scanning": "Scanning...",
     "discoveredHosts": "Discovered Hosts",
     "savedHosts": "Saved Hosts",
     "nothingPlaying": "Nothing playing",
