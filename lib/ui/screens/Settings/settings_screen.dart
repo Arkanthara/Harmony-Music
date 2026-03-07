@@ -10,6 +10,8 @@ import '../../widgets/export_file_dialog.dart';
 import '../../widgets/backup_dialog.dart';
 import '../../widgets/restore_dialog.dart';
 import '../Library/library_controller.dart';
+import '../Network/network_screen.dart';
+import '../Network/network_controller.dart';
 import '../../widgets/snackbar.dart';
 import '/ui/widgets/link_piped.dart';
 import '/services/music_service.dart';
@@ -629,6 +631,22 @@ class SettingsScreen extends StatelessWidget {
                         builder: (context) => const RestoreDialog(),
                       ).whenComplete(
                           () => Get.delete<RestoreDialogController>()),
+                    ),
+                  ]),
+              CustomExpansionTile(
+                  icon: Icons.wifi_tethering,
+                  title: "networkPlay".tr,
+                  children: [
+                    ListTile(
+                      contentPadding: const EdgeInsets.only(left: 5, right: 10),
+                      title: Text("networkPlay".tr),
+                      subtitle: Text("networkPlayDes".tr,
+                          style: Theme.of(context).textTheme.bodyMedium),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        Get.find<NetworkController>();
+                        Get.to(() => const NetworkScreen());
+                      },
                     ),
                   ]),
               CustomExpansionTile(
