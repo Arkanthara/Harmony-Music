@@ -81,6 +81,7 @@ class PlayerController extends GetxController
   bool _wakelockActive = false;
   bool _remoteClientModeActive = false;
   int? _volumeBeforeRemoteMode;
+  String? _lastRemoteSongId;
 
   var _newSongFlag = true;
   final isCurrentSongBuffered = false.obs;
@@ -340,6 +341,9 @@ class PlayerController extends GetxController
     required bool loopEnabled,
     required bool queueLoopEnabled,
   }) {
+    final previousSongId = _lastRemoteSongId;
+    final incomingSongId = song?.id;
+
     currentSong.value = song;
     progressBarStatus.update((val) {
       if (val == null) return;
@@ -359,6 +363,13 @@ class PlayerController extends GetxController
     } else {
       buttonState.value = PlayButtonState.paused;
     }
+
+    // Keep using the app's default player surface in client mode.
+    if (incomingSongId != null &&
+        (initFlagForPlayer || previousSongId != incomingSongId)) {
+      _playerPanelCheck();
+    }
+    _lastRemoteSongId = incomingSongId;
   }
 
   Future<void> _restorePrevSession() async {

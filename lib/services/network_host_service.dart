@@ -19,8 +19,10 @@ class NetworkHostService {
 
   /// Callback invoked when the server starts / stops.
   final void Function(bool running)? onStatusChanged;
+  final void Function(int clients)? onClientCountChanged;
 
-  NetworkHostService({this.port = 8899, this.onStatusChanged});
+  NetworkHostService(
+      {this.port = 8899, this.onStatusChanged, this.onClientCountChanged});
 
   bool get isRunning => _server != null;
 
@@ -66,6 +68,7 @@ class NetworkHostService {
       await ws.close();
     }
     _clients.clear();
+    onClientCountChanged?.call(0);
     await _server?.close(force: true);
     _server = null;
     onStatusChanged?.call(false);
@@ -197,6 +200,7 @@ class NetworkHostService {
   void _onWebSocketConnected(WebSocket ws) {
     printINFO('WebSocket client connected');
     _clients.add(ws);
+    onClientCountChanged?.call(_clients.length);
 
     // Send initial state immediately.
     ws.add(jsonEncode({'type': 'state', 'data': _buildState()}));
@@ -205,10 +209,12 @@ class NetworkHostService {
       (data) => _onWebSocketMessage(ws, data),
       onDone: () {
         _clients.remove(ws);
+        onClientCountChanged?.call(_clients.length);
         printINFO('WebSocket client disconnected');
       },
       onError: (e) {
         _clients.remove(ws);
+        onClientCountChanged?.call(_clients.length);
         printERROR('WebSocket error: $e');
       },
     );

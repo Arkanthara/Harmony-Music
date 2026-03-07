@@ -32,6 +32,9 @@ class NetworkController extends GetxController {
       onStatusChanged: (running) {
         isHostRunning.value = running;
       },
+      onClientCountChanged: (count) {
+        connectedClients.value = count;
+      },
     );
 
     await _hostService!.start();
@@ -45,6 +48,7 @@ class NetworkController extends GetxController {
     _hostService = null;
     hostIp.value = null;
     isHostRunning.value = false;
+    connectedClients.value = 0;
     networkMode.value = NetworkMode.none;
   }
 

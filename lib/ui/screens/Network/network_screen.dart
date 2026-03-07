@@ -1,5 +1,3 @@
-import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '/ui/screens/Network/network_controller.dart';
@@ -30,15 +28,7 @@ class NetworkScreen extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 20),
             Expanded(
-              child: Obx(() {
-                final mode = controller.networkMode.value;
-                if (mode == NetworkMode.client &&
-                    controller.clientService != null &&
-                    controller.clientService!.isConnected.value) {
-                  return _ClientRemote(controller: controller);
-                }
-                return _ModeSelector(controller: controller);
-              }),
+              child: _ModeSelector(controller: controller),
             ),
           ],
         ),
@@ -99,6 +89,41 @@ class _HostSection extends StatelessWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (running)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withAlpha(100),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            controller.connectedClients.value > 0
+                                ? Icons.circle
+                                : Icons.circle_outlined,
+                            size: 10,
+                            color: controller.connectedClients.value > 0
+                                ? Colors.green
+                                : Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.color,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${controller.connectedClients.value} client(s) connected',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
                   if (running && controller.hostIp.value != null)
                     Container(
                       width: double.infinity,
@@ -173,6 +198,7 @@ class _ClientSectionState extends State<_ClientSection> {
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
+    final client = controller.clientService;
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -192,6 +218,40 @@ class _ClientSectionState extends State<_ClientSection> {
             Text("clientModeDes".tr,
                 style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 16),
+
+            if (client != null)
+              Obx(() {
+                if (!client.isConnected.value) return const SizedBox.shrink();
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primaryContainer
+                        .withAlpha(100),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.link, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${"connectedTo".tr} ${client.hostAddress ?? ''}',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: controller.disconnectClient,
+                        child: Text("disconnect".tr),
+                      ),
+                    ],
+                  ),
+                );
+              }),
 
             // Manual IP input
             Row(
@@ -315,267 +375,5 @@ class _ClientSectionState extends State<_ClientSection> {
                 size: SanckBarSize.BIG));
       }
     }
-  }
-}
-
-// ──────────────────────── Client Remote Control ─────────────────────────────
-
-class _ClientRemote extends StatefulWidget {
-  final NetworkController controller;
-  const _ClientRemote({required this.controller});
-
-  @override
-  State<_ClientRemote> createState() => _ClientRemoteState();
-}
-
-class _ClientRemoteState extends State<_ClientRemote> {
-  final _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final client = widget.controller.clientService!;
-    return Column(
-      children: [
-        // Connection header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .primaryContainer
-                .withAlpha(60),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.link, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                "${"connectedTo".tr} ${client.hostAddress ?? ''}",
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () => widget.controller.disconnectClient(),
-                child: Text("disconnect".tr),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Now Playing
-        Obx(() => _NowPlayingCard(client: client)),
-
-        const SizedBox(height: 16),
-
-        // Search bar
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: "searchMusic".tr,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8)),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 12),
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                ),
-                onSubmitted: (q) {
-                  if (q.trim().isNotEmpty) {
-                    client.remoteSearch(q.trim());
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 8),
-            Obx(() => client.isSearching.value
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : IconButton(
-                    icon: const Icon(Icons.search),
-                    onPressed: () {
-                      final q = _searchController.text.trim();
-                      if (q.isNotEmpty) client.remoteSearch(q);
-                    },
-                  )),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Search results
-        Expanded(
-          child: Obx(() {
-            final results = client.searchResults;
-            if (results.isEmpty) {
-              return Center(
-                child: Text("searchToPlay".tr,
-                    style: Theme.of(context).textTheme.bodyMedium),
-              );
-            }
-            return ListView.builder(
-              physics: const BouncingScrollPhysics(),
-              itemCount: results.length,
-              padding: const EdgeInsets.only(bottom: 200),
-              itemBuilder: (context, index) {
-                final song = results[index];
-                final title = song['title'] ?? '';
-                final artists = (song['artists'] as List?)
-                        ?.map((a) => a['name'])
-                        .join(', ') ??
-                    '';
-                final thumb = (song['thumbnails'] as List?)?.isNotEmpty == true
-                    ? song['thumbnails'][0]['url']
-                    : null;
-
-                return ListTile(
-                  leading: thumb != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: CachedNetworkImage(
-                            imageUrl: thumb,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : const Icon(Icons.music_note),
-                  title: Text(title,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: Text(artists,
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
-                  onTap: () => client.remotePlaySong(song),
-                );
-              },
-            );
-          }),
-        ),
-      ],
-    );
-  }
-}
-
-// ──────────────────────── Now Playing Card ───────────────────────────────────
-
-class _NowPlayingCard extends StatelessWidget {
-  final dynamic client;
-  const _NowPlayingCard({required this.client});
-
-  @override
-  Widget build(BuildContext context) {
-    final song = client.currentSong.value;
-    if (song == null) {
-      return Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-              child: Text("nothingPlaying".tr,
-                  style: Theme.of(context).textTheme.bodyLarge)),
-        ),
-      );
-    }
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Song info
-            Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: song.artUri.toString(),
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) =>
-                        const Icon(Icons.music_note, size: 48),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        song.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (song.artist != null)
-                        Text(
-                          song.artist!,
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Progress bar
-            ProgressBar(
-              progress: Duration(milliseconds: client.position.value),
-              buffered: Duration(milliseconds: client.buffered.value),
-              total: Duration(milliseconds: client.duration.value),
-              onSeek: (d) => client.remoteSeek(d.inMilliseconds),
-              barHeight: 3,
-              thumbRadius: 6,
-              timeLabelTextStyle: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 4),
-
-            // Transport controls
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.skip_previous),
-                  iconSize: 36,
-                  onPressed: client.remotePrev,
-                ),
-                const SizedBox(width: 12),
-                IconButton(
-                  icon: Icon(
-                    client.isPlaying.value
-                        ? Icons.pause_circle_filled
-                        : Icons.play_circle_filled,
-                  ),
-                  iconSize: 56,
-                  onPressed: client.isPlaying.value
-                      ? client.remotePause
-                      : client.remotePlay,
-                ),
-                const SizedBox(width: 12),
-                IconButton(
-                  icon: const Icon(Icons.skip_next),
-                  iconSize: 36,
-                  onPressed: client.remoteNext,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
