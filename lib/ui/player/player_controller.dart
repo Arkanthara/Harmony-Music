@@ -20,6 +20,8 @@ import '../screens/Home/home_screen_controller.dart';
 import '../widgets/sliding_up_panel.dart';
 import '/models/durationstate.dart';
 import '/services/music_service.dart';
+import '/services/network_client_service.dart';
+import '/ui/screens/Network/network_controller.dart';
 
 class PlayerController extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -77,6 +79,8 @@ class PlayerController extends GetxController
 
   // track whether wakelock is currently enabled to avoid repeated calls
   bool _wakelockActive = false;
+  bool _remoteClientModeActive = false;
+  int? _volumeBeforeRemoteMode;
 
   var _newSongFlag = true;
   final isCurrentSongBuffered = false.obs;
@@ -168,6 +172,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInPlayerState() {
     _audioHandler.playbackState.listen((playerState) {
+      if (_remoteClientModeActive) return;
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
       if (processingState == AudioProcessingState.loading) {
@@ -210,6 +215,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInPosition() {
     AudioService.position.listen((position) {
+      if (_remoteClientModeActive) return;
       final oldState = progressBarStatus.value;
       if (isSleepEndOfSongActive.isTrue) {
         timerDurationLeft.value = oldState.total.inSeconds - position.inSeconds;
@@ -228,6 +234,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInBufferedPosition() {
     _audioHandler.playbackState.listen((playbackState) {
+      if (_remoteClientModeActive) return;
       final oldState = progressBarStatus.value;
       if (progressBarStatus.value.total.inSeconds != 0 &&
           playbackState.bufferedPosition.inSeconds /
@@ -249,6 +256,7 @@ class PlayerController extends GetxController
 
   void _listenForChangesInDuration() {
     _audioHandler.mediaItem.listen((mediaItem) async {
+      if (_remoteClientModeActive) return;
       final oldState = progressBarStatus.value;
       progressBarStatus.update((val) {
         val!.total = mediaItem?.duration ?? Duration.zero;
@@ -283,9 +291,74 @@ class PlayerController extends GetxController
 
   void _listenForPlaylistChange() {
     _audioHandler.queue.listen((queue) {
+      if (_remoteClientModeActive) return;
       currentQueue.value = queue;
       currentQueue.refresh();
     });
+  }
+
+  NetworkClientService? _activeRemoteClient() {
+    if (!Get.isRegistered<NetworkController>()) return null;
+    final networkController = Get.find<NetworkController>();
+    final client = networkController.clientService;
+    if (networkController.networkMode.value != NetworkMode.client ||
+        client == null ||
+        !client.isConnected.value) {
+      return null;
+    }
+    return client;
+  }
+
+  void enableRemoteClientMode() {
+    if (_remoteClientModeActive) return;
+    _remoteClientModeActive = true;
+    _volumeBeforeRemoteMode = volume.value;
+    _audioHandler.pause();
+    _audioHandler.customAction("setVolume", {"value": 0});
+    volume.value = 0;
+  }
+
+  void disableRemoteClientMode() {
+    if (!_remoteClientModeActive) return;
+    _remoteClientModeActive = false;
+    final restoredVolume =
+        _volumeBeforeRemoteMode ?? Hive.box("AppPrefs").get("volume") ?? 100;
+    _audioHandler.customAction("setVolume", {"value": restoredVolume});
+    volume.value = restoredVolume;
+    _volumeBeforeRemoteMode = null;
+  }
+
+  void applyRemoteClientState({
+    required MediaItem? song,
+    required bool isPlaying,
+    required bool isLoading,
+    required int positionMs,
+    required int bufferedMs,
+    required int durationMs,
+    required int volumeValue,
+    required bool shuffleEnabled,
+    required bool loopEnabled,
+    required bool queueLoopEnabled,
+  }) {
+    currentSong.value = song;
+    progressBarStatus.update((val) {
+      if (val == null) return;
+      val.current = Duration(milliseconds: positionMs);
+      val.buffered = Duration(milliseconds: bufferedMs);
+      val.total = Duration(milliseconds: durationMs);
+    });
+    isShuffleModeEnabled.value = shuffleEnabled;
+    isLoopModeEnabled.value = loopEnabled;
+    isQueueLoopModeEnabled.value = queueLoopEnabled;
+    volume.value = volumeValue;
+
+    if (isLoading) {
+      buttonState.value = PlayButtonState.loading;
+    } else if (isPlaying) {
+      buttonState.value = PlayButtonState.playing;
+    } else {
+      buttonState.value = PlayButtonState.paused;
+    }
   }
 
   Future<void> _restorePrevSession() async {
@@ -323,6 +396,12 @@ class PlayerController extends GetxController
   ///songs into Queue
   Future<void> pushSongToQueue(MediaItem? mediaItem,
       {String? playlistid, bool radio = false}) async {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null && mediaItem != null) {
+      remoteClient.remotePlaySong(MediaItemBuilder.toJson(mediaItem));
+      return;
+    }
+
     /// update playing from value
     playinfrom.value = PlaylingFrom(
         type: PlaylingFromType.SELECTION,
@@ -382,6 +461,14 @@ class PlayerController extends GetxController
 
   Future<void> playPlayListSong(List<MediaItem> mediaItems, int index,
       {PlaylingFrom? playfrom}) async {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      if (index >= 0 && index < mediaItems.length) {
+        remoteClient.remotePlaySong(MediaItemBuilder.toJson(mediaItems[index]));
+      }
+      return;
+    }
+
     isRadioModeOn = false;
     //open player pane,set current song and push first song into playing list,
 
@@ -425,6 +512,12 @@ class PlayerController extends GetxController
   ///enqueueSong   append a song to current queue
   ///if current queue is empty, push the song into Queue and play that song
   Future<void> enqueueSong(MediaItem mediaItem) async {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      remoteClient.remotePlaySong(MediaItemBuilder.toJson(mediaItem));
+      return;
+    }
+
     if (currentQueue.isEmpty) {
       await playPlayListSong([mediaItem], 0);
       return;
@@ -470,6 +563,12 @@ class PlayerController extends GetxController
   }
 
   void playNext(MediaItem song) {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      remoteClient.remotePlaySong(MediaItemBuilder.toJson(song));
+      return;
+    }
+
     if (currentQueue.isEmpty) {
       enqueueSong(song);
       return;
@@ -562,10 +661,20 @@ class PlayerController extends GetxController
   }
 
   void play() {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      remoteClient.remotePlay();
+      return;
+    }
     _audioHandler.play();
   }
 
   void pause() {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      remoteClient.remotePause();
+      return;
+    }
     _audioHandler.pause();
   }
 
@@ -582,14 +691,29 @@ class PlayerController extends GetxController
   }
 
   void prev() {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      remoteClient.remotePrev();
+      return;
+    }
     _audioHandler.skipToPrevious();
   }
 
   Future<void> next() async {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      remoteClient.remoteNext();
+      return;
+    }
     await _audioHandler.skipToNext();
   }
 
   void seek(Duration position) {
+    final remoteClient = _activeRemoteClient();
+    if (remoteClient != null) {
+      remoteClient.remoteSeek(position.inMilliseconds);
+      return;
+    }
     _audioHandler.seek(position);
   }
 

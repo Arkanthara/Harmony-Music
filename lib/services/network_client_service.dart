@@ -15,6 +15,9 @@ class NetworkClientService {
   final int port;
   Timer? _reconnectTimer;
 
+  /// Called whenever fresh server playback state is received.
+  void Function()? onStateChanged;
+
   // ────────────────────────── Observable state ──────────────────────────────
 
   final isConnected = false.obs;
@@ -225,6 +228,7 @@ class NetworkClientService {
     loopMode.value = data['loopMode'] ?? false;
     queueLoopMode.value = data['queueLoopMode'] ?? false;
     queueLength.value = data['queueLength'] ?? 0;
+    onStateChanged?.call();
   }
 
   // ────────────────────────── Commands ───────────────────────────────────────
