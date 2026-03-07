@@ -83,6 +83,8 @@ class PlayerController extends GetxController
   int? _volumeBeforeRemoteMode;
   String? _lastRemoteSongId;
 
+  bool get isRemoteClientModeActive => _remoteClientModeActive;
+
   var _newSongFlag = true;
   final isCurrentSongBuffered = false.obs;
 
